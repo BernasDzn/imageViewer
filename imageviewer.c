@@ -117,50 +117,6 @@ int calculateImageRatio(int windowWidth, int windowHeight, SDL_Rect * rect, SDL_
     return 0;
 }
 
-void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWidth, int windowHeight, int hudSize){
-    
-    // draw current image
-    // SDL_Rect * curImagePreview = &(SDL_Rect){
-    //     windowWidth/2 - hudSize/2,
-    //     windowHeight - hudSize*2,
-    //     hudSize,
-    //     hudSize
-    // };
-
-    // SDL_RenderCopy(prenderer, ptexture, NULL, curImagePreview);
-    // SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
-    // SDL_RenderDrawRect(prenderer,curImagePreview);
-    // SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
-
-    // draw prev and next image previews
-    // draw previous
-    // if(pprevimagetexture!=NULL){
-    //     SDL_Rect * prevImagePreview = &(SDL_Rect){
-    //         windowWidth/2 - hudSize/2 - hudSize*1.5,
-    //         windowHeight - hudSize*2,
-    //         hudSize,
-    //         hudSize
-    //     };
-    //     SDL_RenderCopy(prenderer, pprevimagetexture, NULL, prevImagePreview);
-    //     SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
-    //     SDL_RenderDrawRect(prenderer,prevImagePreview);
-    //     SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
-    // }
-    // // draw next
-    // if(pnextimagetexture!=NULL){
-    //     SDL_Rect * nextImagePreview = &(SDL_Rect){
-    //         windowWidth/2 - hudSize/2 + hudSize*1.5,
-    //         windowHeight - hudSize*2,
-    //         hudSize,
-    //         hudSize
-    //     };
-    //     SDL_RenderCopy(prenderer, pnextimagetexture, NULL, nextImagePreview);
-    //     SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
-    //     SDL_RenderDrawRect(prenderer,nextImagePreview);
-    //     SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
-    // }
-}
-
 void loadImageTexture(const char* imagePath, int index, SDL_Renderer* prenderer) {
     int imageChannels;
     
@@ -206,6 +162,75 @@ void loadImageTexture(const char* imagePath, int index, SDL_Renderer* prenderer)
     
     // cache texture
     imageTextures[index] = ptexture;
+}
+
+void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWidth, int windowHeight, int hudSize){
+
+    for (int i = -appSettings.previewCount; i <= appSettings.previewCount; i++) {
+
+        // Draw previews
+        SDL_Rect previewRect = {
+            windowWidth / 2 + i * (hudSize + 10) - hudSize / 2,
+            windowHeight - hudSize - 10,
+            hudSize,
+            hudSize
+        };
+
+        int previewIndex = currentIndex + i;
+        if (previewIndex >= 0 && previewIndex < imageCount) {
+         
+            // Load texture if not already loaded
+            if (imageTextures[previewIndex] == NULL) {
+                loadImageTexture(images[previewIndex], previewIndex, prenderer);
+            }
+
+            SDL_RenderCopy(prenderer, imageTextures[previewIndex], NULL, &previewRect);
+            SDL_SetRenderDrawColor(prenderer, 0xff, 0xff, 0xff, 0xff);
+            SDL_RenderDrawRect(prenderer, &previewRect);
+            SDL_SetRenderDrawColor(prenderer, 0x00, 0x00, 0x00, 0xff);
+        }
+    }
+
+    // draw current image
+    // SDL_Rect * curImagePreview = &(SDL_Rect){
+    //     windowWidth/2 - hudSize/2,
+    //     windowHeight - hudSize*2,
+    //     hudSize,
+    //     hudSize
+    // };
+
+    // SDL_RenderCopy(prenderer, ptexture, NULL, curImagePreview);
+    // SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+    // SDL_RenderDrawRect(prenderer,curImagePreview);
+    // SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+
+    // draw prev and next image previews
+    // draw previous
+    // if(pprevimagetexture!=NULL){
+    //     SDL_Rect * prevImagePreview = &(SDL_Rect){
+    //         windowWidth/2 - hudSize/2 - hudSize*1.5,
+    //         windowHeight - hudSize*2,
+    //         hudSize,
+    //         hudSize
+    //     };
+    //     SDL_RenderCopy(prenderer, pprevimagetexture, NULL, prevImagePreview);
+    //     SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+    //     SDL_RenderDrawRect(prenderer,prevImagePreview);
+    //     SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+    // }
+    // // draw next
+    // if(pnextimagetexture!=NULL){
+    //     SDL_Rect * nextImagePreview = &(SDL_Rect){
+    //         windowWidth/2 - hudSize/2 + hudSize*1.5,
+    //         windowHeight - hudSize*2,
+    //         hudSize,
+    //         hudSize
+    //     };
+    //     SDL_RenderCopy(prenderer, pnextimagetexture, NULL, nextImagePreview);
+    //     SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+    //     SDL_RenderDrawRect(prenderer,nextImagePreview);
+    //     SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+    // }
 }
 
 void loadCurrentTexture(SDL_Renderer* prenderer) {
@@ -296,6 +321,7 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
         SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
         SDL_RenderClear(prenderer);
         SDL_RenderCopy(prenderer, imageTextures[currentIndex], NULL, &scaledRect);
+        doRenderHUD(prenderer, imageTextures[currentIndex], w, h, 50);
         SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
         SDL_RenderPresent(prenderer);
     }
