@@ -10,6 +10,26 @@
 #include <dirent.h>
 #include <libgen.h>
 
+#ifdef _WIN32
+#include <windows.h>
+
+char* realpath(const char* path, char* resolvedPath) {
+    if (GetFullPathNameA(path, MAX_PATH, resolvedPath, NULL) == 0) {
+        return NULL;
+    }
+
+    // replace backslashes with forward slashes
+    for (char* p = resolvedPath; *p; p++) {
+        if (*p == '\\') {
+            *p = '/';
+        }
+    }
+
+    return resolvedPath;
+}
+
+#endif
+
 typedef struct {
     char previewCount;
 } settings;
@@ -329,11 +349,18 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
 
 void setupImageList(char* imageFile) {
 
-    printf("Selected file: %s\n", imageFile);
+    char realPath[PATH_MAX];
+    if (realpath(imageFile, realPath) == NULL) {
+        printf("Error resolving path: %s\n", imageFile);
+        exit(1);
+    }
+
     
-    images = getImagesInDirectory(imageFile, &imageCount);
+    images = getImagesInDirectory(realPath, &imageCount);
     for(int k = 0; k < imageCount; k++){
-        if(strcmp(images[k], imageFile) == 0){
+
+        if(strcmp(images[k], realPath) == 0){
+            printf("Found image at index %d\n", k);
             currentIndex = k;
             break;
         }
