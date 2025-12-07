@@ -1,13 +1,25 @@
 #include<stdio.h>
 #include<stdlib.h>
+#define SDL_MAIN_HANDLED
 #include<SDL2/SDL.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "tinyfiledialogs.h"
-#include <linux/limits.h>
+#include <limits.h>
 #include <string.h>
 #include <dirent.h>
 #include <libgen.h>
+
+#ifdef _WIN32
+    #include <windows.h>
+
+    char *realpath(const char *path, char *resolved_path)
+    {
+        // le troll face
+        strcpy(resolved_path, path);
+        return resolved_path;
+    }
+#endif
 
 int imageWidth, imageHeight;
 
@@ -15,11 +27,16 @@ char * currentImagePath;
 char * previousImagePath;
 char * nextImagePath;
 char ** images;
-int currentIndex = -1;
+
+int currentIndex = 0;
 int imageCount = 0;
 
 void updateImagePaths() {
+
     if(currentIndex >= 0 && currentIndex < imageCount) {
+
+        printf("Current image: %s\n", images[currentIndex]);
+
         if(currentImagePath) free(currentImagePath);
         if(previousImagePath) free(previousImagePath);
         if(nextImagePath) free(nextImagePath);
@@ -109,6 +126,7 @@ int calculateImageRatio(int windowWidth, int windowHeight, SDL_Rect * rect){
 
 void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWidth, int windowHeight, int hudSize, 
                 SDL_Texture * pprevimagetexture, SDL_Texture * pnextimagetexture){
+    
     // draw current image
     SDL_Rect * curImagePreview = &(SDL_Rect){
         windowWidth/2 - hudSize/2,
@@ -116,6 +134,7 @@ void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWid
         hudSize,
         hudSize
     };
+
     SDL_RenderCopy(prenderer, ptexture, NULL, curImagePreview);
     SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
     SDL_RenderDrawRect(prenderer,curImagePreview);
@@ -153,9 +172,12 @@ void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWid
 SDL_Texture* loadImageTexture(const char* imagePath, SDL_Renderer* prenderer, int* outWidth, int* outHeight) {
     int imageChannels;
     
+    printf("Opening path: %s\n", imagePath);
+
     // load image
     unsigned char *img = stbi_load(imagePath, outWidth, outHeight, &imageChannels, 0);
     if(img == NULL){
+        printf("Failed to load image: %s\n", stbi_failure_reason());
         return NULL;
     }
     
@@ -270,7 +292,7 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Texture * 
     }
 }
 
-char * pickFile(){
+char * pickFileUI(){
     char const * filterPatterns[5] = { "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.gif" };
     return (char *)tinyfd_openFileDialog(
         "Select an Image",
@@ -282,35 +304,59 @@ char * pickFile(){
     );
 }
 
-int main(){
-    const char *title = "Image Viewer";
-    int x, y, w, h, minW, minH;
+void pickFile() {
 
     // pick file
-    char *filename = pickFile();
+    char *filename = pickFileUI();
     if(filename==NULL){
         printf("No image selected.\n");
         SDL_Init(SDL_INIT_VIDEO);
         tinyfd_notifyPopup("Error","No image was selected.","warning");
         SDL_Quit();
-        return 0; 
+        exit(1);
     }
 
-    // get all images in directory
-    images = getImagesInDirectory(filename, &imageCount);
+    setupImageList(filename);
+}
+
+void setupImageList(char* imageFile) {
+
+    printf("Selected file: %s\n", filename);
     
+    images = getImagesInDirectory(imageFile, &imageCount);
     // get current index
     char actualpath[PATH_MAX];
-    realpath(filename, actualpath);
-    
+    realpath(imageFile, actualpath);
     for(int k = 0; k < imageCount; k++){
         if(strcmp(images[k], actualpath) == 0){
             currentIndex = k;
             break;
         }
     }
-    
+
     updateImagePaths();
+}
+
+int main(int argc, char* argv[]){
+
+    const char *title = "Image Viewer";
+    int x, y, w, h, minW, minH;
+
+    if (argc == 1 ) {
+        
+        // Pick file UI
+        pickFile();
+
+    } else if (argc == 2 ) {
+
+        // Use file from command line argument
+        char* imageFile = argv[1];
+        setupImageList(imageFile);
+
+    } else {
+        printf("Usage: %s [image_file]\n", argv[0]);
+        exit(1);
+    }
     
     //window settings
     x = SDL_WINDOWPOS_CENTERED;
@@ -336,6 +382,9 @@ int main(){
         return 0;
     }
     
+    printf("Just loaded image: %s\n", currentImagePath);
+    printf("Cached images count: %d\n", imageCount);
+
     // render cycle
     SDL_Rect ratioPreservedSize;
     calculateImageRatio(w,h, &ratioPreservedSize);
