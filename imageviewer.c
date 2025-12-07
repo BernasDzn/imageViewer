@@ -7,6 +7,12 @@
 
 int imageWidth, imageHeight;
 
+char ** getImagesInDirectory(char * imageFile){
+    char actualpath [PATH_MAX];
+    realpath(imageFile, actualpath);
+    return NULL;
+}
+
 int calculateImageRatio(int windowWidth, int windowHeight, int imageWidth, int imageHeight, SDL_Rect * rect){
     float windowAspect = (float)windowWidth / windowHeight;
     float imageAspect = (float)imageWidth / imageHeight;
@@ -25,6 +31,47 @@ int calculateImageRatio(int windowWidth, int windowHeight, int imageWidth, int i
     
     *rect = (SDL_Rect){x, y, destWidth, destHeight};
     return 0;
+}
+
+void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWidth, int windowHeight, int hudSize){
+    // draw current image
+    SDL_Rect * curImagePreview = &(SDL_Rect){
+        windowWidth/2 - hudSize/2,
+        windowHeight - hudSize*2,
+        hudSize,
+        hudSize
+    };
+    SDL_RenderCopy(prenderer, ptexture, NULL, curImagePreview);
+    SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+    SDL_RenderDrawRect(prenderer,curImagePreview);
+    SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+
+    // draw next images
+    // to be later changed by actual logic
+    if(1){
+        // draw previous
+        SDL_Rect * curImagePreview = &(SDL_Rect){
+            windowWidth/2 - hudSize/2 - hudSize*1.5,
+            windowHeight - hudSize*2,
+            hudSize,
+            hudSize
+        };
+        SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+        SDL_RenderDrawRect(prenderer,curImagePreview);
+        SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+    }
+    if(1){
+        // draw next
+        SDL_Rect * curImagePreview = &(SDL_Rect){
+            windowWidth/2 - hudSize/2 + hudSize*1.5,
+            windowHeight - hudSize*2,
+            hudSize,
+            hudSize
+        };
+        SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+        SDL_RenderDrawRect(prenderer,curImagePreview);
+        SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+    }
 }
 
 void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Texture * ptexture, SDL_Rect * ratioPreservedSize){
@@ -88,6 +135,7 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Texture * 
 
         SDL_RenderClear(prenderer);
         SDL_RenderCopy(prenderer, ptexture, NULL, &scaledRect);
+        doRenderHUD(prenderer, ptexture, w, h, 50);
         SDL_RenderPresent(prenderer);
     }
 }
