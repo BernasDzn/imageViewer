@@ -10,62 +10,44 @@
 #include <dirent.h>
 #include <libgen.h>
 
-#ifdef _WIN32
-    #include <windows.h>
+typedef struct {
+    char previewCount;
+} settings;
 
-    char *realpath(const char *path, char *resolved_path)
-    {
-        // le troll face
-        strcpy(resolved_path, path);
-        return resolved_path;
-    }
-#endif
-
-int imageWidth, imageHeight;
-
-char * currentImagePath;
-char * previousImagePath;
-char * nextImagePath;
-char ** images;
-
+// The current image index
 int currentIndex = 0;
-int imageCount = 0;
 
-void updateImagePaths() {
+char ** images; // Full image path buffer
+SDL_Texture ** imageTextures; // Image texture sparsebuffer
+int imageCount = 0; // Image buffer size
 
-    if(currentIndex >= 0 && currentIndex < imageCount) {
+settings appSettings = {
+    .previewCount = 1
+};
 
-        printf("Current image: %s\n", images[currentIndex]);
-
-        if(currentImagePath) free(currentImagePath);
-        if(previousImagePath) free(previousImagePath);
-        if(nextImagePath) free(nextImagePath);
-        
-        currentImagePath = strdup(images[currentIndex]);
-        previousImagePath = (currentIndex > 0) ? strdup(images[currentIndex - 1]) : NULL;
-        nextImagePath = (currentIndex < imageCount - 1) ? strdup(images[currentIndex + 1]) : NULL;
-    }
+char* currentImage() {
+    return images[currentIndex];
 }
 
-void nextImage() {
-    if(currentIndex < imageCount - 1) {
-        currentIndex++;
-        updateImagePaths();
-    }
+char* indexImage(int i) {
+    if(currentIndex + i < imageCount)
+        return images[currentIndex + i];
+    return NULL;
 }
 
-void previousImage() {
-    if(currentIndex > 0) {
+void decrementIndex() {
+    if(currentIndex > 0)
         currentIndex--;
-        updateImagePaths();
-    }
 }
 
-char **getImagesInDirectory(char *imageFile, int *count) {
-    char actualpath[PATH_MAX];
-    if (!realpath(imageFile, actualpath)) return NULL;
-    
-    char *dir = dirname(strdup(actualpath));
+void incrementIndex() {
+    if(currentIndex < imageCount - 1)
+        currentIndex++;
+}
+
+char** getImagesInDirectory(char* imageFile, int* count) {
+
+    char *dir = dirname(strdup(imageFile));
     DIR *d = opendir(dir);
     if (!d) return NULL;
     
@@ -101,10 +83,21 @@ char **getImagesInDirectory(char *imageFile, int *count) {
     
     closedir(d);
     free(dir);
+
+    // Allocate sparse texture buffer with same size
+    imageTextures = malloc(sizeof(SDL_Texture*) * (*count));
+    for (int j = 0; j < *count; j++) {
+        imageTextures[j] = NULL;
+    }
+
     return images;
 }
 
-int calculateImageRatio(int windowWidth, int windowHeight, SDL_Rect * rect){
+int calculateImageRatio(int windowWidth, int windowHeight, SDL_Rect * rect, SDL_Texture * ptexture) {
+
+    int imageWidth, imageHeight;
+    SDL_QueryTexture(ptexture, NULL, NULL, &imageWidth, &imageHeight);
+
     float windowAspect = (float)windowWidth / windowHeight;
     float imageAspect = (float)imageWidth / imageHeight;
     
@@ -124,73 +117,73 @@ int calculateImageRatio(int windowWidth, int windowHeight, SDL_Rect * rect){
     return 0;
 }
 
-void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWidth, int windowHeight, int hudSize, 
-                SDL_Texture * pprevimagetexture, SDL_Texture * pnextimagetexture){
+void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWidth, int windowHeight, int hudSize){
     
     // draw current image
-    SDL_Rect * curImagePreview = &(SDL_Rect){
-        windowWidth/2 - hudSize/2,
-        windowHeight - hudSize*2,
-        hudSize,
-        hudSize
-    };
+    // SDL_Rect * curImagePreview = &(SDL_Rect){
+    //     windowWidth/2 - hudSize/2,
+    //     windowHeight - hudSize*2,
+    //     hudSize,
+    //     hudSize
+    // };
 
-    SDL_RenderCopy(prenderer, ptexture, NULL, curImagePreview);
-    SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
-    SDL_RenderDrawRect(prenderer,curImagePreview);
-    SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+    // SDL_RenderCopy(prenderer, ptexture, NULL, curImagePreview);
+    // SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+    // SDL_RenderDrawRect(prenderer,curImagePreview);
+    // SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
 
     // draw prev and next image previews
     // draw previous
-    if(pprevimagetexture!=NULL){
-        SDL_Rect * prevImagePreview = &(SDL_Rect){
-            windowWidth/2 - hudSize/2 - hudSize*1.5,
-            windowHeight - hudSize*2,
-            hudSize,
-            hudSize
-        };
-        SDL_RenderCopy(prenderer, pprevimagetexture, NULL, prevImagePreview);
-        SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
-        SDL_RenderDrawRect(prenderer,prevImagePreview);
-        SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
-    }
-    // draw next
-    if(pnextimagetexture!=NULL){
-        SDL_Rect * nextImagePreview = &(SDL_Rect){
-            windowWidth/2 - hudSize/2 + hudSize*1.5,
-            windowHeight - hudSize*2,
-            hudSize,
-            hudSize
-        };
-        SDL_RenderCopy(prenderer, pnextimagetexture, NULL, nextImagePreview);
-        SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
-        SDL_RenderDrawRect(prenderer,nextImagePreview);
-        SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
-    }
+    // if(pprevimagetexture!=NULL){
+    //     SDL_Rect * prevImagePreview = &(SDL_Rect){
+    //         windowWidth/2 - hudSize/2 - hudSize*1.5,
+    //         windowHeight - hudSize*2,
+    //         hudSize,
+    //         hudSize
+    //     };
+    //     SDL_RenderCopy(prenderer, pprevimagetexture, NULL, prevImagePreview);
+    //     SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+    //     SDL_RenderDrawRect(prenderer,prevImagePreview);
+    //     SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+    // }
+    // // draw next
+    // if(pnextimagetexture!=NULL){
+    //     SDL_Rect * nextImagePreview = &(SDL_Rect){
+    //         windowWidth/2 - hudSize/2 + hudSize*1.5,
+    //         windowHeight - hudSize*2,
+    //         hudSize,
+    //         hudSize
+    //     };
+    //     SDL_RenderCopy(prenderer, pnextimagetexture, NULL, nextImagePreview);
+    //     SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
+    //     SDL_RenderDrawRect(prenderer,nextImagePreview);
+    //     SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
+    // }
 }
 
-SDL_Texture* loadImageTexture(const char* imagePath, SDL_Renderer* prenderer, int* outWidth, int* outHeight) {
+void loadImageTexture(const char* imagePath, int index, SDL_Renderer* prenderer) {
     int imageChannels;
     
     printf("Opening path: %s\n", imagePath);
 
     // load image
-    unsigned char *img = stbi_load(imagePath, outWidth, outHeight, &imageChannels, 0);
-    if(img == NULL){
+    int imageWidth, imageHeight;
+    unsigned char *img = stbi_load(imagePath, &imageWidth, &imageHeight, &imageChannels, 0);
+    if (!img) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
-        return NULL;
+        exit(1);
     }
     
     // create surface
-    SDL_Surface *psurface = SDL_CreateRGBSurface(0, *outWidth, *outHeight, 32, 0, 0, 0, 0);
+    SDL_Surface *psurface = SDL_CreateRGBSurface(0, imageWidth, imageHeight, 32, 0,0,0,0);
     
     // fill surface with data from image
     Uint32 color;
     SDL_Rect pixel = (SDL_Rect){0, 0, 1, 1};
-    for(int i = 0; i < *outWidth; i++){
-        for(int j = 0; j < *outHeight; j++){
+    for(int i = 0; i < imageWidth; i++){
+        for(int j = 0; j < imageHeight; j++){
             unsigned int bytePerPixel = imageChannels;
-            unsigned char * pixelOffset = img + (i + *outWidth * j) * bytePerPixel;
+            unsigned char * pixelOffset = img + (i + imageWidth * j) * bytePerPixel;
             unsigned char r = pixelOffset[0];
             unsigned char g = pixelOffset[1];
             unsigned char b = pixelOffset[2];
@@ -211,10 +204,19 @@ SDL_Texture* loadImageTexture(const char* imagePath, SDL_Renderer* prenderer, in
     // surface no longer needed
     SDL_FreeSurface(psurface);
     
-    return ptexture;
+    // cache texture
+    imageTextures[index] = ptexture;
 }
 
-void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Texture * ptexture, SDL_Rect * ratioPreservedSize){
+void loadCurrentTexture(SDL_Renderer* prenderer) {
+
+    char* imagePath = currentImage();
+    if(imageTextures[currentIndex] == NULL){
+        loadImageTexture(imagePath, currentIndex, prenderer);
+    }
+}
+
+void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * ratioPreservedSize){
     SDL_Event event;
     int running = 1;
     int dragging = 0;
@@ -226,14 +228,19 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Texture * 
     int dragStartX = 0, dragStartY = 0;
     
     while(running){
+
+        // load texture if not already loaded
+        loadCurrentTexture(prenderer);
+
         while(SDL_PollEvent(&event)){
+
             if((event.type == SDL_QUIT) ||
                (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)){
                 running = 0;
             }
             if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED){
                 SDL_GetWindowSize(pwindow,&w,&h);
-                calculateImageRatio(w,h,ratioPreservedSize);
+                calculateImageRatio(w,h,ratioPreservedSize, imageTextures[currentIndex]);
             }
             if(event.type == SDL_MOUSEWHEEL){
                 if(event.wheel.y > 0){
@@ -256,13 +263,12 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Texture * 
             }
             if(event.type == SDL_KEYUP){
                 if(event.key.keysym.sym == SDLK_LEFT){
-                    previousImage();
+                    decrementIndex();
                 }
                 if(event.key.keysym.sym == SDLK_RIGHT){
-                    nextImage();
+                    incrementIndex();
                 }
-                ptexture = loadImageTexture(currentImagePath, prenderer, &imageWidth, &imageHeight);
-                calculateImageRatio(w,h,ratioPreservedSize);
+                calculateImageRatio(w,h,ratioPreservedSize, imageTextures[currentIndex]);
             }
         }
         
@@ -283,12 +289,28 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Texture * 
         scaledRect.x = centeredX + offsetX;
         scaledRect.y = centeredY + offsetY;
 
+        // SDL_RenderClear(prenderer);
+        // SDL_RenderCopy(prenderer, ptexture, NULL, &scaledRect);
+        // doRenderHUD(prenderer, ptexture, w, h, 50);
+        // SDL_RenderPresent(prenderer);
+        SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
         SDL_RenderClear(prenderer);
-        SDL_RenderCopy(prenderer, ptexture, NULL, &scaledRect);
-        doRenderHUD(prenderer, ptexture, w, h, 50, 
-            loadImageTexture(previousImagePath,prenderer,&imageWidth,&imageHeight), 
-            loadImageTexture(nextImagePath,prenderer,&imageWidth,&imageHeight));
+        SDL_RenderCopy(prenderer, imageTextures[currentIndex], NULL, &scaledRect);
+        SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
         SDL_RenderPresent(prenderer);
+    }
+}
+
+void setupImageList(char* imageFile) {
+
+    printf("Selected file: %s\n", imageFile);
+    
+    images = getImagesInDirectory(imageFile, &imageCount);
+    for(int k = 0; k < imageCount; k++){
+        if(strcmp(images[k], imageFile) == 0){
+            currentIndex = k;
+            break;
+        }
     }
 }
 
@@ -317,24 +339,6 @@ void pickFile() {
     }
 
     setupImageList(filename);
-}
-
-void setupImageList(char* imageFile) {
-
-    printf("Selected file: %s\n", filename);
-    
-    images = getImagesInDirectory(imageFile, &imageCount);
-    // get current index
-    char actualpath[PATH_MAX];
-    realpath(imageFile, actualpath);
-    for(int k = 0; k < imageCount; k++){
-        if(strcmp(images[k], actualpath) == 0){
-            currentIndex = k;
-            break;
-        }
-    }
-
-    updateImagePaths();
 }
 
 int main(int argc, char* argv[]){
@@ -373,31 +377,26 @@ int main(int argc, char* argv[]){
     SDL_Renderer *prenderer = SDL_CreateRenderer(pwindow,-1,0);
     
     // load initial image
-    SDL_Texture * ptexture = loadImageTexture(currentImagePath, prenderer, &imageWidth, &imageHeight);
-    if(ptexture == NULL){
-        printf("Error loading image.\n");
-        SDL_DestroyRenderer(prenderer);
-        SDL_DestroyWindow(pwindow);
-        SDL_Quit();
-        return 0;
-    }
+    loadCurrentTexture(prenderer);
     
-    printf("Just loaded image: %s\n", currentImagePath);
     printf("Cached images count: %d\n", imageCount);
 
     // render cycle
     SDL_Rect ratioPreservedSize;
-    calculateImageRatio(w,h, &ratioPreservedSize);
-    doRenderCycle(pwindow, prenderer, ptexture, &ratioPreservedSize);
+    calculateImageRatio(w,h, &ratioPreservedSize, imageTextures[currentIndex]);
+    doRenderCycle(pwindow, prenderer, &ratioPreservedSize);
     // clean up
-    if(currentImagePath) free(currentImagePath);
-    if(previousImagePath) free(previousImagePath);
-    if(nextImagePath) free(nextImagePath);
     for(int l = 0; l<imageCount;l++){
         free(images[l]);
     }
+    for (int m = 0; m<imageCount;m++){
+        if(imageTextures[m]!=NULL){
+            SDL_DestroyTexture(imageTextures[m]);
+        }
+    }
+
     free(images);
-    SDL_DestroyTexture(ptexture);
+    free(imageTextures);
     SDL_DestroyRenderer(prenderer);
     SDL_DestroyWindow(pwindow);
     SDL_Quit();
