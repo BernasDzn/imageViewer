@@ -263,6 +263,56 @@ void loadCurrentTexture(SDL_Renderer* prenderer) {
     }
 }
 
+void setupImageList(char* imageFile) {
+
+    char realPath[PATH_MAX];
+    if (realpath(imageFile, realPath) == NULL) {
+        printf("Error resolving path: %s\n", imageFile);
+        exit(1);
+    }
+
+    
+    images = getImagesInDirectory(realPath, &imageCount);
+    for(int k = 0; k < imageCount; k++){
+
+        if(strcmp(images[k], realPath) == 0){
+            printf("Found image at index %d\n", k);
+            currentIndex = k;
+            break;
+        }
+    }
+}
+
+char * pickFileUI(){
+    char const * filterPatterns[5] = { "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.gif" };
+    return (char *)tinyfd_openFileDialog(
+        "Select an Image",
+        "",
+        5,
+        filterPatterns,
+        "Image files",
+        0
+    );
+}
+
+void pickFile() {
+
+    // pick file
+    char *filename = pickFileUI();
+    if(filename==NULL){
+        printf("No image selected.\n");
+        if(imageCount==0){
+            SDL_Init(SDL_INIT_VIDEO);
+            tinyfd_notifyPopup("Error","No image was selected.","warning");
+            SDL_Quit();
+            exit(0);
+        }
+    }
+    else{
+        setupImageList(filename);
+    }
+}
+
 void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * ratioPreservedSize){
     SDL_Event event;
     int running = 1;
@@ -315,8 +365,13 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
                 if(event.key.keysym.sym == SDLK_RIGHT){
                     incrementIndex();
                 }
+                if(event.key.keysym.sym == SDLK_o){
+                        pickFile();
+                    loadCurrentTexture(prenderer);
+                }
                 calculateImageRatio(w,h,ratioPreservedSize, imageTextures[currentIndex]);
-            }
+                zoom = 1.0f;
+            }               
         }
         
         scaledRect.w = (int)(ratioPreservedSize->w * zoom);
@@ -347,53 +402,6 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
         SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
         SDL_RenderPresent(prenderer);
     }
-}
-
-void setupImageList(char* imageFile) {
-
-    char realPath[PATH_MAX];
-    if (realpath(imageFile, realPath) == NULL) {
-        printf("Error resolving path: %s\n", imageFile);
-        exit(1);
-    }
-
-    
-    images = getImagesInDirectory(realPath, &imageCount);
-    for(int k = 0; k < imageCount; k++){
-
-        if(strcmp(images[k], realPath) == 0){
-            printf("Found image at index %d\n", k);
-            currentIndex = k;
-            break;
-        }
-    }
-}
-
-char * pickFileUI(){
-    char const * filterPatterns[5] = { "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.gif" };
-    return (char *)tinyfd_openFileDialog(
-        "Select an Image",
-        "",
-        5,
-        filterPatterns,
-        "Image files",
-        0
-    );
-}
-
-void pickFile() {
-
-    // pick file
-    char *filename = pickFileUI();
-    if(filename==NULL){
-        printf("No image selected.\n");
-        SDL_Init(SDL_INIT_VIDEO);
-        tinyfd_notifyPopup("Error","No image was selected.","warning");
-        SDL_Quit();
-        exit(1);
-    }
-
-    setupImageList(filename);
 }
 
 int main(int argc, char* argv[]){
