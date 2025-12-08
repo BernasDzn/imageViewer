@@ -184,10 +184,10 @@ void loadImageTexture(const char* imagePath, int index, SDL_Renderer* prenderer)
     imageTextures[index] = ptexture;
 }
 
-void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWidth, int windowHeight, int hudSize){
+void doRenderHUD(SDL_Renderer * prenderer, int windowWidth, int windowHeight, int hudSize){
 
     for (int i = -appSettings.previewCount; i <= appSettings.previewCount; i++) {
-
+        
         // Draw previews
         SDL_Rect previewRect = {
             windowWidth / 2 + i * (hudSize + 10) - hudSize / 2,
@@ -195,21 +195,23 @@ void doRenderHUD(SDL_Renderer * prenderer, SDL_Texture * ptexture, int windowWid
             hudSize,
             hudSize
         };
-
+        
         int previewIndex = currentIndex + i;
         if (previewIndex >= 0 && previewIndex < imageCount) {
-         
+            
             // Load texture if not already loaded
             if (imageTextures[previewIndex] == NULL) {
                 loadImageTexture(images[previewIndex], previewIndex, prenderer);
             }
-
+            if(previewIndex==currentIndex)
+                SDL_SetRenderDrawColor(prenderer, 0xff, 0xff, 0xff, 0xff);
+            else
+                SDL_SetRenderDrawColor(prenderer, 0x00, 0x00, 0x00, 0xff);
             SDL_RenderCopy(prenderer, imageTextures[previewIndex], NULL, &previewRect);
-            SDL_SetRenderDrawColor(prenderer, 0xff, 0xff, 0xff, 0xff);
             SDL_RenderDrawRect(prenderer, &previewRect);
-            SDL_SetRenderDrawColor(prenderer, 0x00, 0x00, 0x00, 0xff);
         }
     }
+    SDL_SetRenderDrawColor(prenderer, 0x00, 0x00, 0x00, 0xff);
 
     // draw current image
     // SDL_Rect * curImagePreview = &(SDL_Rect){
@@ -341,7 +343,7 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
         SDL_SetRenderDrawColor(prenderer,0x00,0x00,0x00,0xff);
         SDL_RenderClear(prenderer);
         SDL_RenderCopy(prenderer, imageTextures[currentIndex], NULL, &scaledRect);
-        doRenderHUD(prenderer, imageTextures[currentIndex], w, h, 50);
+        doRenderHUD(prenderer, w, h, 50);
         SDL_SetRenderDrawColor(prenderer,0xff,0xff,0xff,0xff);
         SDL_RenderPresent(prenderer);
     }
