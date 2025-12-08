@@ -67,17 +67,19 @@ void unloadDistantTextures() {
     }
 }
 
-void decrementIndex() {
+void decrementIndex(SDL_Renderer* prenderer, SDL_Window* pwindow) {
     if(currentIndex > 0) {
         currentIndex--;
         unloadDistantTextures();
+        loadCurrentTexture(prenderer, pwindow);
     }
 }
 
-void incrementIndex() {
+void incrementIndex(SDL_Renderer* prenderer, SDL_Window* pwindow) {
     if(currentIndex < imageCount - 1) {
         currentIndex++;
         unloadDistantTextures();
+        loadCurrentTexture(prenderer, pwindow);
     }
 }
 
@@ -289,7 +291,7 @@ void loadCurrentTexture(SDL_Renderer* prenderer, SDL_Window * pwindow) {
     }
     
     char title[256];
-    snprintf(title, sizeof(title), "Image Viewer - %s (%d/%d)", filename, currentIndex + 1, imageCount);
+    snprintf(title, sizeof(title), "Image Viewer (%s)", filename);
     SDL_SetWindowTitle(pwindow, title);
 }
 
@@ -387,10 +389,10 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
             }
             if(event.type == SDL_KEYUP){
                 if(event.key.keysym.sym == SDLK_LEFT){
-                    decrementIndex();
+                    decrementIndex(prenderer, pwindow);
                 }
                 if(event.key.keysym.sym == SDLK_RIGHT){
-                    incrementIndex();
+                    incrementIndex(prenderer, pwindow);
                 }
                 if(event.key.keysym.sym == SDLK_o){
                     pickFile();
