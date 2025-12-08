@@ -188,14 +188,6 @@ void doRenderHUD(SDL_Renderer * prenderer, int windowWidth, int windowHeight, in
 
     for (int i = -appSettings.previewCount; i <= appSettings.previewCount; i++) {
         
-        // Draw previews
-        SDL_Rect previewRect = {
-            windowWidth / 2 + i * (hudSize + 10) - hudSize / 2,
-            windowHeight - hudSize - 10,
-            hudSize,
-            hudSize
-        };
-        
         int previewIndex = currentIndex + i;
         if (previewIndex >= 0 && previewIndex < imageCount) {
             
@@ -203,10 +195,22 @@ void doRenderHUD(SDL_Renderer * prenderer, int windowWidth, int windowHeight, in
             if (imageTextures[previewIndex] == NULL) {
                 loadImageTexture(images[previewIndex], previewIndex, prenderer);
             }
+            
+            SDL_Rect scaledPreview = {0, 0, hudSize, hudSize};
+            calculateImageRatio(hudSize, hudSize, &scaledPreview, imageTextures[previewIndex]);
+            
+            SDL_Rect previewRect = {
+                windowWidth / 2 + i * (hudSize + 10) - scaledPreview.w / 2,
+                windowHeight - hudSize - 10 + (hudSize - scaledPreview.h) / 2,
+                scaledPreview.w,
+                scaledPreview.h
+            };
+            
             if(previewIndex==currentIndex)
                 SDL_SetRenderDrawColor(prenderer, 0xff, 0xff, 0xff, 0xff);
             else
                 SDL_SetRenderDrawColor(prenderer, 0x00, 0x00, 0x00, 0xff);
+                
             SDL_RenderCopy(prenderer, imageTextures[previewIndex], NULL, &previewRect);
             SDL_RenderDrawRect(prenderer, &previewRect);
         }
