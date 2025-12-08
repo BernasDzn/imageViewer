@@ -56,14 +56,29 @@ char* indexImage(int i) {
     return NULL;
 }
 
+void unloadDistantTextures() {
+    for (int i = 0; i < imageCount; i++) {
+        int distance = abs(i - currentIndex);
+        if (distance > appSettings.previewCount + 1 && imageTextures[i] != NULL) {
+            printf("Unloading texture at index %d\n", i);
+            SDL_DestroyTexture(imageTextures[i]);
+            imageTextures[i] = NULL;
+        }
+    }
+}
+
 void decrementIndex() {
-    if(currentIndex > 0)
+    if(currentIndex > 0) {
         currentIndex--;
+        unloadDistantTextures();
+    }
 }
 
 void incrementIndex() {
-    if(currentIndex < imageCount - 1)
+    if(currentIndex < imageCount - 1) {
         currentIndex++;
+        unloadDistantTextures();
+    }
 }
 
 char** getImagesInDirectory(char* imageFile, int* count) {
@@ -145,41 +160,39 @@ void loadImageTexture(const char* imagePath, int index, SDL_Renderer* prenderer)
 
     // load image
     int imageWidth, imageHeight;
-    unsigned char *img = stbi_load(imagePath, &imageWidth, &imageHeight, &imageChannels, 0);
+    unsigned char *img = stbi_load(imagePath, &imageWidth, &imageHeight, &imageChannels, STBI_rgb_alpha);
     if (!img) {
         printf("Failed to load image: %s\n", stbi_failure_reason());
         exit(1);
     }
     
-    // create surface
-    SDL_Surface *psurface = SDL_CreateRGBSurface(0, imageWidth, imageHeight, 32, 0,0,0,0);
+    // create surface with pre-allocated pixel buffer
+    SDL_Surface *psurface = SDL_CreateRGBSurfaceFrom(
+        img,
+        imageWidth,
+        imageHeight,
+        32,
+        imageWidth * 4,
+        0x000000FF,
+        0x0000FF00,
+        0x00FF0000,
+        0xFF000000
+    );
     
-    // fill surface with data from image
-    Uint32 color;
-    SDL_Rect pixel = (SDL_Rect){0, 0, 1, 1};
-    for(int i = 0; i < imageWidth; i++){
-        for(int j = 0; j < imageHeight; j++){
-            unsigned int bytePerPixel = imageChannels;
-            unsigned char * pixelOffset = img + (i + imageWidth * j) * bytePerPixel;
-            unsigned char r = pixelOffset[0];
-            unsigned char g = pixelOffset[1];
-            unsigned char b = pixelOffset[2];
-            unsigned char a = imageChannels >= 4 ? pixelOffset[3] : 0xff;
-            pixel.x = i;
-            pixel.y = j;
-            color = SDL_MapRGBA(psurface->format, r, g, b, a);
-            SDL_FillRect(psurface, &pixel, color);
-        }
+    if (!psurface) {
+        printf("Failed to create surface: %s\n", SDL_GetError());
+        stbi_image_free(img);
+        exit(1);
     }
-    
-    // image file no longer needed
-    stbi_image_free(img);
     
     // create texture from surface
     SDL_Texture * ptexture = SDL_CreateTextureFromSurface(prenderer, psurface);
     
-    // surface no longer needed
+    // surface no longer needed (texture holds the data now)
     SDL_FreeSurface(psurface);
+    
+    // image file no longer needed
+    stbi_image_free(img);
     
     // cache texture
     imageTextures[index] = ptexture;
@@ -216,6 +229,7 @@ void doRenderHUD(SDL_Renderer * prenderer, int windowWidth, int windowHeight, in
             SDL_RenderDrawRect(prenderer, &previewRect);
         }
     }
+    
     SDL_SetRenderDrawColor(prenderer, 0x00, 0x00, 0x00, 0xff);
 
     // draw current image
@@ -260,12 +274,23 @@ void doRenderHUD(SDL_Renderer * prenderer, int windowWidth, int windowHeight, in
     // }
 }
 
-void loadCurrentTexture(SDL_Renderer* prenderer) {
-
+void loadCurrentTexture(SDL_Renderer* prenderer, SDL_Window * pwindow) {
+    
     char* imagePath = currentImage();
     if(imageTextures[currentIndex] == NULL){
         loadImageTexture(imagePath, currentIndex, prenderer);
     }
+    
+    char* filename = strrchr(imagePath, '/');
+    if (filename) {
+        filename++;
+    } else {
+        filename = imagePath; 
+    }
+    
+    char title[256];
+    snprintf(title, sizeof(title), "Image Viewer - %s (%d/%d)", filename, currentIndex + 1, imageCount);
+    SDL_SetWindowTitle(pwindow, title);
 }
 
 void setupImageList(char* imageFile) {
@@ -331,9 +356,6 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
     
     while(running){
 
-        // load texture if not already loaded
-        loadCurrentTexture(prenderer);
-
         while(SDL_PollEvent(&event)){
 
             if((event.type == SDL_QUIT) ||
@@ -372,7 +394,7 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
                 }
                 if(event.key.keysym.sym == SDLK_o){
                     pickFile();
-                    loadCurrentTexture(prenderer);
+                    loadCurrentTexture(prenderer, pwindow);
                 }
                 offsetX=0;
                 offsetY=0;
@@ -447,7 +469,7 @@ int main(int argc, char* argv[]){
     SDL_Renderer *prenderer = SDL_CreateRenderer(pwindow,-1,0);
     
     // load initial image
-    loadCurrentTexture(prenderer);
+    loadCurrentTexture(prenderer, pwindow);
     
     printf("Cached images count: %d\n", imageCount);
 
