@@ -1,7 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
 #define SDL_MAIN_HANDLED
-#include<SDL2/SDL.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "tinyfiledialogs.h"
@@ -12,6 +11,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include<SDL.h>
 
 char* realpath(const char* path, char* resolvedPath) {
     if (GetFullPathNameA(path, MAX_PATH, resolvedPath, NULL) == 0) {
@@ -27,7 +27,8 @@ char* realpath(const char* path, char* resolvedPath) {
 
     return resolvedPath;
 }
-
+#else
+#include<SDL2/SDL.h>
 #endif
 
 typedef struct {
