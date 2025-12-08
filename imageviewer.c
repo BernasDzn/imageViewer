@@ -370,9 +370,11 @@ void doRenderCycle(SDL_Window* pwindow, SDL_Renderer * prenderer, SDL_Rect * rat
                     incrementIndex();
                 }
                 if(event.key.keysym.sym == SDLK_o){
-                        pickFile();
+                    pickFile();
                     loadCurrentTexture(prenderer);
                 }
+                offsetX=0;
+                offsetY=0;
                 calculateImageRatio(w,h,ratioPreservedSize, imageTextures[currentIndex]);
                 zoom = 1.0f;
             }               
